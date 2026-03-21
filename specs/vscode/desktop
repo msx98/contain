@@ -1,7 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=VSCode
+Name=VSCode$SUFFIX
 Icon=com.visualstudio.code
 Terminal=false
 Categories=Development;IDE;TextEditor;
 StartupWMClass=code
+Exec=$SCRIPT_PATH --name $INSTANCE $NAME %F

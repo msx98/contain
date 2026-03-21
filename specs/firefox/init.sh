@@ -1,1 +1,1 @@
-firefox --name=org.mozilla.firefox
+dbus-run-session -- firefox --name=org.mozilla.firefox.$INSTANCE "$@"

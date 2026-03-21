@@ -26,6 +26,8 @@ while [[ "$1" == --* ]]; do
     shift
 done
 NAME="$1"
+shift
+APP_ARGS=("$@")
 if [ "$INSTANCE" == "" ]; then
     INSTANCE="$NAME"
 fi
@@ -102,18 +104,13 @@ fi
 
 # Auto-export desktop entry if spec provides one
 if [ -f "$SPEC/desktop" ]; then
-    DEST="$DESKTOP_ENTRY_DIR/contain-$NAME-$INSTANCE.desktop"
-    {
-        cat "$SPEC/desktop"
-        echo "Path=$SCRIPT_DIR"
-        echo "Exec=contain --name $INSTANCE $NAME"
-    } > "$DEST"
-    if [ "$NAME" == "$INSTANCE" ]; then
-        SUFFIX=" (Default)"
-    else
+    SUFFIX=""
+    if [ "$INSTANCE" != "$NAME" ]; then
         SUFFIX=" ($INSTANCE)"
     fi
-    sed -i -E "s/Name=(.*)/Name=\1$SUFFIX/" "$DEST"
+    DEST="$DESKTOP_ENTRY_DIR/contain-$NAME-$INSTANCE.desktop"
+    SUFFIX="$SUFFIX" SCRIPT_DIR="$SCRIPT_DIR" SCRIPT_PATH="$SCRIPT_PATH" NAME="$NAME" INSTANCE="$INSTANCE" \
+        envsubst '$NAME $INSTANCE $SCRIPT_PATH $SCRIPT_DIR $SUFFIX' < "$SPEC/desktop" > "$DEST"
     update-desktop-database "$DESKTOP_ENTRY_DIR"
     echo "Installed desktop entry: $DEST"
 fi
@@ -182,6 +179,7 @@ COMMON_FLAGS+=("-v" "$DBUS_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/bus:rw")
 COMMON_FLAGS+=("-v" "$PULSE_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/pulse/native")
 COMMON_FLAGS+=("-v" "$CONTAIN_HOME:$CONTAIN_HOME_GUEST:Z")
 COMMON_FLAGS+=("-e" "HOME=$CONTAIN_HOME_GUEST")
+COMMON_FLAGS+=("-e" "INSTANCE=$INSTANCE")
 COMMON_FLAGS+=("-e" "UID_GUEST=$UID_GUEST")
 COMMON_FLAGS+=("-e" "GTK_THEME=Adwaita:dark")
 COMMON_FLAGS+=("-e" "DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR_GUEST/bus")
@@ -196,7 +194,7 @@ echo "Adding extra podman flag: $extra"
 done
 COMMON_FLAGS+=("$IMAGE")
 
-echo "${PODMAN_RUN[@]}" -i --rm "${COMMON_FLAGS[@]}" dbus-run-session -- bash /init.sh
+echo "${PODMAN_RUN[@]}" -i --rm -v "$(realpath "$SPEC/init.sh"):/init.sh:ro" --cap-drop ALL "${COMMON_FLAGS[@]}" dbus-run-session -- bash /init.sh "${APP_ARGS[@]}"
 
 if [ "$UPDATE" -eq 1 ] && [ -f "$SPEC/setup.sh" ]; then
     echo "Running postbuild script for $NAME..."
@@ -237,5 +235,5 @@ else
         -v "$(realpath "$SPEC/init.sh"):/init.sh:ro" \
         --cap-drop ALL \
         "${COMMON_FLAGS[@]}" \
-        dbus-run-session -- bash /init.sh
+        "${APP_ARGS[@]}"
 fi
