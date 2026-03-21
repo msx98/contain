@@ -1,0 +1,59 @@
+FROM fedora:latest
+
+# Fonts first — large and rarely change, keep near top for cache stability
+RUN dnf install -y --skip-unavailable \
+    google-noto-fonts-common \
+    google-noto-sans-hebrew-fonts \
+    google-noto-serif-hebrew-fonts \
+    google-noto-sans-cjk-fonts \
+    google-noto-serif-cjk-fonts \
+    google-noto-sans-arabic-fonts \
+    google-noto-naskh-arabic-fonts \
+    google-noto-sans-thai-fonts \
+    google-noto-serif-thai-fonts \
+    google-noto-emoji-fonts \
+    google-noto-sans-devanagari-fonts \
+    google-noto-sans-bengali-fonts \
+    google-noto-sans-tamil-fonts \
+    google-noto-sans-telugu-fonts \
+    google-noto-sans-kannada-fonts \
+    google-noto-sans-malayalam-fonts \
+    google-noto-sans-gujarati-fonts \
+    google-noto-sans-gurmukhi-fonts \
+    google-noto-sans-ethiopic-fonts \
+    google-noto-sans-georgian-fonts \
+    google-noto-sans-armenian-fonts \
+    google-noto-sans-khmer-fonts \
+    google-noto-sans-myanmar-fonts \
+    google-noto-sans-sinhala-fonts \
+    && dnf clean all
+
+# GUI/Wayland essentials
+RUN dnf install -y \
+    mesa-dri-drivers \
+    mesa-vulkan-drivers \
+    pipewire \
+    pipewire-pulseaudio \
+    adwaita-icon-theme \
+    fontconfig \
+    dbus-x11 \
+    sudo \
+    && dnf clean all
+
+RUN fc-cache -f
+
+ARG UID=1000
+ARG USER=user
+
+RUN useradd -m -u $UID $USER && \
+    mkdir -p /run/user/$UID && chown $USER:$USER /run/user/$UID && \
+    echo "$USER ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+ENV MOZ_ENABLE_WAYLAND=1
+ENV GDK_BACKEND=wayland
+ENV XCURSOR_THEME=Adwaita
+ENV XCURSOR_SIZE=48
+ENV XCURSOR_PATH=/usr/share/icons
+
+COPY init.sh /
+ENTRYPOINT ["bash", "/init.sh"]

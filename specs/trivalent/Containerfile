@@ -1,0 +1,11 @@
+ARG BASE
+FROM $BASE
+
+# Add the secureblue repo (provides prebuilt trivalent)
+RUN curl -fsSL https://repo.secureblue.dev/secureblue.gpg \
+        | tee /etc/pki/rpm-gpg/secureblue.gpg \
+        | rpm --import - && \
+    curl -fsSL https://repo.secureblue.dev/secureblue.repo \
+        -o /etc/yum.repos.d/secureblue.repo
+
+RUN dnf install -y trivalent && dnf clean all
