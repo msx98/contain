@@ -1,0 +1,18 @@
+ARG BASE
+FROM $BASE
+
+RUN apt-get update && apt-get install -y ca-certificates curl xz-utils && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Download and install the latest Tor Browser release
+RUN URL=$(curl -fsSL "https://aus1.torproject.org/torbrowser/update_3/release/downloads.json" \
+        | grep -o '"binary" : "https://dist.torproject.org/torbrowser/[^"]*linux-x86_64[^"]*\.tar\.xz"' \
+        | head -1 | cut -d'"' -f4) && \
+    curl -fsSL "${URL}" \
+        -o /tmp/tor-browser.tar.xz && \
+    tar -xJf /tmp/tor-browser.tar.xz -C /opt && \
+    rm /tmp/tor-browser.tar.xz
+
+RUN chmod -R a+rX /opt/tor-browser
+
+RUN touch /opt/tor-browser/Browser/is-packaged-app

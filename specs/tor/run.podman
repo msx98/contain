@@ -1,0 +1,4 @@
+--device=/dev/dri/renderD128:/dev/dri/renderD128:rw
+--shm-size=1g
+--cap-add=SYS_CHROOT
+--volume=${HOME}/Downloads:/home/user/Downloads
