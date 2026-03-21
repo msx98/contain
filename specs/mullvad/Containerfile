@@ -1,0 +1,17 @@
+ARG BASE
+FROM $BASE
+
+RUN apt-get update && apt-get install -y ca-certificates curl xz-utils && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Download and install the latest Mullvad Browser release
+RUN VERSION=$(curl -fsSL "https://api.github.com/repos/mullvad/mullvad-browser/releases/latest" \
+        | grep '"tag_name"' | cut -d'"' -f4) && \
+    curl -fsSL "https://github.com/mullvad/mullvad-browser/releases/download/${VERSION}/mullvad-browser-linux-x86_64-${VERSION}.tar.xz" \
+        -o /tmp/mullvad-browser.tar.xz && \
+    tar -xJf /tmp/mullvad-browser.tar.xz -C /opt && \
+    rm /tmp/mullvad-browser.tar.xz
+
+RUN chmod -R a+rX /opt/mullvad-browser
+
+RUN touch /opt/mullvad-browser/Browser/is-packaged-app
