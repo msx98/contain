@@ -1,1 +1,1 @@
-BASE=contain-base:hard-ubuntu
+BASE=contain-base:hard-fedora

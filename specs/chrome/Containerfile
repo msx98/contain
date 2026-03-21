@@ -1,31 +1,13 @@
 ARG BASE
 FROM $BASE
 
-# 1. Install dependencies for the Google repo
-RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
-    ca-certificates \
-    --no-install-recommends
+# Add Google's signing key and repository
+RUN rpm --import https://dl.google.com/linux/linux_signing_key.pub && \
+    echo -e "[google-chrome]\nname=Google Chrome\nbaseurl=https://dl.google.com/linux/chrome/rpm/stable/x86_64\nenabled=1\ngpgcheck=1\ngpgkey=https://dl.google.com/linux/linux_signing_key.pub" \
+        > /etc/yum.repos.d/google-chrome.repo
 
-# 2. Add Google's signing key and repository
-RUN wget -4 -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /usr/share/keyrings/google-chrome.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+RUN dnf install -y google-chrome-stable && dnf clean all
 
-# 3. Install Google Chrome and PipeWire client libs
-RUN apt-get update && apt-get install -y \
-    google-chrome-stable \
-    --no-install-recommends && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN dnf install -y librsvg2
 
-# 4. Set Chrome-specific Wayland environment variables
-# This tells Chrome to use the Wayland backend instead of X11
-ENV CHROME_FLAGS="--ozone-platform-hint=auto --ozone-platform=wayland --gtk-version=4"
-
-# New user "chrome" with no home directory and no password
-RUN useradd -m -s /bin/bash chrome
-# Add sub to group user so that it can access the home directory
-RUN usermod -aG user chrome
-# Run as the new user by default
-#USER chrome
 WORKDIR /home/user
