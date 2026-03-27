@@ -9,13 +9,27 @@ if [[ "$1" == "--base" ]]; then
 fi
 
 if [ -z "$1" ]; then
-    echo "Usage: ./build [--base] <name>"
-    echo "  ./build chrome       - build contain:chrome (auto-builds base if needed)"
+    echo "Usage: ./build [--base] <spec-tag>"
+    echo "  ./build alpine                  - build localhost/contain:alpine"
+    echo "  ./build hard-fedora/trivalent   - build localhost/contain:hard-fedora--trivalent"
     exit 1
 fi
 
 SPEC_TAG="$1"
-SPEC_DIR="./specs/$SPEC_TAG"
+
+# Resolve spec directory from tag.
+# "a/b/c" -> ./specs/a/children/b/children/c/definition
+spec_dir() {
+    local tag="$1" dir="./specs"
+    IFS='/' read -ra parts <<< "$tag"
+    for ((i=0; i<${#parts[@]}; i++)); do
+        ((i > 0)) && dir="$dir/children"
+        dir="$dir/${parts[$i]}"
+    done
+    echo "$dir/definition"
+}
+
+SPEC_DIR=$(spec_dir "$SPEC_TAG")
 CONTAINERFILE="$SPEC_DIR/Containerfile"
 
 if [ ! -f "$CONTAINERFILE" ]; then
@@ -23,37 +37,31 @@ if [ ! -f "$CONTAINERFILE" ]; then
     exit 1
 fi
 
-# Read build.args: TAG overrides the output tag, BASE triggers auto-build
-TAG=""
+# Derive image tag: replace "/" with "--"
+TAG="localhost/contain:${SPEC_TAG//\//--}"
+
+# Derive BASE from parent path and auto-build it if missing
 BASE=""
-if [ -f "$SPEC_DIR/build.args" ]; then
-    while IFS='=' read -r key value; do
-        [[ -z "$key" || "$key" == \#* ]] && continue
-        case "$key" in
-            TAG)  TAG="$value" ;;
-            BASE) BASE="$value" ;;
-        esac
-    done < "$SPEC_DIR/build.args"
-fi
-
-# Default tag: base/* -> contain-base:<name>, else contain:<name>
-if [ -z "$TAG" ]; then
-    if [[ "$SPEC_TAG" == base/* ]]; then
-        TAG="contain-base:${SPEC_TAG#base/}"
-    else
-        TAG="contain:$SPEC_TAG"
+if [[ "$SPEC_TAG" == */* ]]; then
+    PARENT_TAG="${SPEC_TAG%/*}"
+    BASE="localhost/contain:${PARENT_TAG//\//--}"
+    if [ "$REBUILD_BASE" -eq 1 ] || ! podman image exists "$BASE"; then
+        echo "Building parent $BASE..."
+        "$0" "$PARENT_TAG"
     fi
-fi
-
-# Auto-build base image if not present
-if [ -n "$BASE" ] && ! podman image exists "$BASE"; then
-    BASE_NAME="${BASE#contain-base:}"
-    echo "Base image $BASE not found, building..."
-    "$0" "base/$BASE_NAME"
 fi
 
 BUILD_ARG_FLAGS=()
 [ -n "$BASE" ] && BUILD_ARG_FLAGS+=(--build-arg "BASE=$BASE")
+
+# Read build.args for any additional custom args (TAG and BASE are derived from path)
+if [ -f "$SPEC_DIR/build.args" ]; then
+    while IFS='=' read -r key value; do
+        [[ -z "$key" || "$key" == \#* ]] && continue
+        [[ "$key" == TAG || "$key" == BASE ]] && continue
+        BUILD_ARG_FLAGS+=(--build-arg "$key=$value")
+    done < "$SPEC_DIR/build.args"
+fi
 
 echo "------------------------------------------"
 echo "Building $TAG from $CONTAINERFILE"

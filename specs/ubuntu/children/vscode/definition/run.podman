@@ -1,0 +1,9 @@
+--device=/dev/dri/renderD128:/dev/dri/renderD128:rw
+--shm-size=1g
+--cap-add=SYS_CHROOT
+--volume=${HOME}/Repositories:/home/user/Repositories
+--volume=${HOME}/Repositories:${HOME}/Repositories
+--volume=${HOME}/Downloads:/home/user/Downloads
+--volume=${HOME}/Downloads:${HOME}/Downloads
+--volume=${HOME}/Documents/Android/Sdk:/home/user/Android/Sdk
+--volume=${SPEC}/extra:/extra:ro

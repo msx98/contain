@@ -5,6 +5,7 @@ set -e
 SCRIPT_PATH="$(realpath "$0")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 SPECS_DIR="${SCRIPT_DIR}/specs"
+INSTANCES_DIR="${SCRIPT_DIR}/instances"
 cd "${SCRIPT_DIR}"
 
 REBUILD=0
@@ -29,8 +30,21 @@ done
 SPEC_TAG="$1"
 shift
 APP_ARGS=("$@")
+
+# Resolve spec directory from tag.
+# "a/b/c" -> $SPECS_DIR/a/children/b/children/c/definition
+spec_dir() {
+    local tag="$1" dir="$SPECS_DIR"
+    IFS='/' read -ra parts <<< "$tag"
+    for ((i=0; i<${#parts[@]}; i++)); do
+        ((i > 0)) && dir="$dir/children"
+        dir="$dir/${parts[$i]}"
+    done
+    echo "$dir/definition"
+}
+
 if [ "$INSTANCE" == "" ]; then
-    INSTANCE="$SPEC_TAG"
+    INSTANCE="${SPEC_TAG//\//--}"
 fi
 echo "Executing $SPEC_TAG ($INSTANCE)"
 
@@ -68,8 +82,8 @@ cleanup() {
 }
 
 
-SPEC="$SPECS_DIR/$SPEC_TAG"
-IMAGE="localhost/contain:$SPEC_TAG"
+SPEC=$(spec_dir "$SPEC_TAG")
+IMAGE="localhost/contain:${SPEC_TAG//\//--}"
 CONTAIN_ROOTFS="$HOME/.local/share/contain/$INSTANCE"
 CONTAIN_HOME_GUEST="/home/user"
 export CONTAIN_HOME_GUEST
@@ -106,10 +120,11 @@ fi
 # Auto-export desktop entry if spec provides one
 if [ -f "$SPEC/desktop" ]; then
     SUFFIX=""
-    if [ "$INSTANCE" != "$SPEC_TAG" ]; then
+    SPEC_TAG_ID="${SPEC_TAG//\//--}"
+    if [ "$INSTANCE" != "$SPEC_TAG_ID" ]; then
         SUFFIX=" ($INSTANCE)"
     fi
-    DEST="$DESKTOP_ENTRY_DIR/contain-$SPEC_TAG-$INSTANCE.desktop"
+    DEST="$DESKTOP_ENTRY_DIR/contain-$SPEC_TAG_ID-$INSTANCE.desktop"
     SUFFIX="$SUFFIX" SCRIPT_DIR="$SCRIPT_DIR" SCRIPT_PATH="$SCRIPT_PATH" SPEC_TAG="$SPEC_TAG" INSTANCE="$INSTANCE" \
         envsubst '$SPEC_TAG $INSTANCE $SCRIPT_PATH $SCRIPT_DIR $SUFFIX' < "$SPEC/desktop" > "$DEST"
     update-desktop-database "$DESKTOP_ENTRY_DIR"

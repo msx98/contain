@@ -1,5 +1,0 @@
---device=/dev/dri/renderD128:/dev/dri/renderD128:rw
---shm-size=1g
---cap-add=SYS_CHROOT
---volume=${HOME}/Repositories:/home/user/Repositories
---volume=${HOME}/Repositories:${HOME}/Repositories
