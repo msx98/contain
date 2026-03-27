@@ -14,8 +14,8 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-NAME="$1"
-SPEC_DIR="./specs/$NAME"
+SPEC_TAG="$1"
+SPEC_DIR="./specs/$SPEC_TAG"
 CONTAINERFILE="$SPEC_DIR/Containerfile"
 
 if [ ! -f "$CONTAINERFILE" ]; then
@@ -38,10 +38,10 @@ fi
 
 # Default tag: base/* -> contain-base:<name>, else contain:<name>
 if [ -z "$TAG" ]; then
-    if [[ "$NAME" == base/* ]]; then
-        TAG="contain-base:${NAME#base/}"
+    if [[ "$SPEC_TAG" == base/* ]]; then
+        TAG="contain-base:${SPEC_TAG#base/}"
     else
-        TAG="contain:$NAME"
+        TAG="contain:$SPEC_TAG"
     fi
 fi
 

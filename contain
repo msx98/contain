@@ -26,13 +26,13 @@ while [[ "$1" == --* ]]; do
     esac
     shift
 done
-NAME="$1"
+SPEC_TAG="$1"
 shift
 APP_ARGS=("$@")
 if [ "$INSTANCE" == "" ]; then
-    INSTANCE="$NAME"
+    INSTANCE="$SPEC_TAG"
 fi
-echo "Executing $NAME ($INSTANCE)"
+echo "Executing $SPEC_TAG ($INSTANCE)"
 
 TMP_DIR=$(mktemp -d)
 DBUS_PROXY_SOCK="$TMP_DIR/dbus.sock"
@@ -68,8 +68,8 @@ cleanup() {
 }
 
 
-SPEC="$SPECS_DIR/$NAME"
-IMAGE="localhost/contain:$NAME"
+SPEC="$SPECS_DIR/$SPEC_TAG"
+IMAGE="localhost/contain:$SPEC_TAG"
 CONTAIN_ROOTFS="$HOME/.local/share/contain/$INSTANCE"
 CONTAIN_HOME_GUEST="/home/user"
 export CONTAIN_HOME_GUEST
@@ -99,19 +99,19 @@ fi
 
 if [ "$REBUILD" -eq 1 ]; then
     echo "Building image $IMAGE..."
-    ./build "$NAME"
+    ./build "$SPEC_TAG"
     UPDATE=1
 fi
 
 # Auto-export desktop entry if spec provides one
 if [ -f "$SPEC/desktop" ]; then
     SUFFIX=""
-    if [ "$INSTANCE" != "$NAME" ]; then
+    if [ "$INSTANCE" != "$SPEC_TAG" ]; then
         SUFFIX=" ($INSTANCE)"
     fi
-    DEST="$DESKTOP_ENTRY_DIR/contain-$NAME-$INSTANCE.desktop"
-    SUFFIX="$SUFFIX" SCRIPT_DIR="$SCRIPT_DIR" SCRIPT_PATH="$SCRIPT_PATH" NAME="$NAME" INSTANCE="$INSTANCE" \
-        envsubst '$NAME $INSTANCE $SCRIPT_PATH $SCRIPT_DIR $SUFFIX' < "$SPEC/desktop" > "$DEST"
+    DEST="$DESKTOP_ENTRY_DIR/contain-$SPEC_TAG-$INSTANCE.desktop"
+    SUFFIX="$SUFFIX" SCRIPT_DIR="$SCRIPT_DIR" SCRIPT_PATH="$SCRIPT_PATH" SPEC_TAG="$SPEC_TAG" INSTANCE="$INSTANCE" \
+        envsubst '$SPEC_TAG $INSTANCE $SCRIPT_PATH $SCRIPT_DIR $SUFFIX' < "$SPEC/desktop" > "$DEST"
     update-desktop-database "$DESKTOP_ENTRY_DIR"
     echo "Installed desktop entry: $DEST"
 fi
@@ -165,7 +165,7 @@ PODMAN_RUN=("podman" "run")
 
 # Flags shared between postbuild and normal run
 COMMON_FLAGS=()
-#COMMON_FLAGS+=("--name" "contain-$NAME")
+#COMMON_FLAGS+=("--name" "contain-$SPEC_TAG")
 #COMMON_FLAGS+=("--cap-drop" "ALL")
 COMMON_FLAGS+=("--security-opt" "no-new-privileges")
 COMMON_FLAGS+=("--security-opt" "label=type:container_runtime_t")
@@ -206,7 +206,7 @@ COMMON_FLAGS+=("$IMAGE")
 echo "${PODMAN_RUN[@]}" -i --rm -v "$(realpath "$SPEC/init.sh"):/init.sh:ro" --cap-drop ALL "${COMMON_FLAGS[@]}" dbus-run-session -- bash /init.sh "${APP_ARGS[@]}"
 
 if [ "$UPDATE" -eq 1 ] && [ -f "$SPEC/setup.sh" ]; then
-    echo "Running postbuild script for $NAME..."
+    echo "Running postbuild script for $SPEC_TAG..."
     "${PODMAN_RUN[@]}" -it --rm \
         --user 0:0 \
         --cap-add ALL \
@@ -216,7 +216,7 @@ if [ "$UPDATE" -eq 1 ] && [ -f "$SPEC/setup.sh" ]; then
 fi
 
 if [ "$UPDATE" -eq 1 ] && [ -f "$SPEC/setup.user.sh" ]; then
-    echo "Running postbuild user script for $NAME..."
+    echo "Running postbuild user script for $SPEC_TAG..."
     "${PODMAN_RUN[@]}" -it --rm \
         -v "$(realpath "$SPEC/setup.user.sh"):/setup.sh:ro" \
         "${COMMON_FLAGS[@]}"  \
@@ -224,7 +224,7 @@ if [ "$UPDATE" -eq 1 ] && [ -f "$SPEC/setup.user.sh" ]; then
 fi
 
 if [ -f "$SPEC/init.root.sh" ]; then
-    echo "Running init script as root for $NAME..."
+    echo "Running init script as root for $SPEC_TAG..."
     "${PODMAN_RUN[@]}" -it --rm \
         --user 0:0 \
         --cap-add ALL \
@@ -234,12 +234,12 @@ if [ -f "$SPEC/init.root.sh" ]; then
 fi
 
 if [ "$SHELL_MODE" -eq 1 ]; then
-    echo "Starting shell in container for $NAME..."
+    echo "Starting shell in container for $SPEC_TAG..."
     "${PODMAN_RUN[@]}" -it --rm \
         "${COMMON_FLAGS[@]}" \
         dbus-run-session -- bash
 else
-    echo "Starting container for $NAME..."
+    echo "Starting container for $SPEC_TAG..."
     "${PODMAN_RUN[@]}" -i --rm \
         -v "$(realpath "$SPEC/init.sh"):/init.sh:ro" \
         --cap-drop ALL \

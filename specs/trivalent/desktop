@@ -128,7 +128,7 @@ GenericName[vi]=Bộ duyệt Web
 GenericName[zh_CN]=网页浏览器
 GenericName[zh_HK]=網頁瀏覽器
 GenericName[zh_TW]=網頁瀏覽器
-Exec=$SCRIPT_PATH --name $INSTANCE $NAME %U
+Exec=$SCRIPT_PATH --name $INSTANCE $SPEC_TAG %U
 Terminal=false
 X-MultipleArgs=false
 Type=Application
@@ -246,7 +246,7 @@ Name[wo]=Palanteer bu bees
 Name[xh]=Ifestile entsha
 Name[zh_CN]=新建窗口
 Name[zh_TW]=開新視窗
-Exec=$SCRIPT_PATH --name $INSTANCE $NAME %U
+Exec=$SCRIPT_PATH --name $INSTANCE $SPEC_TAG %U
 
 [Desktop Action new-private-window]
 Name=Open a New Private Window
@@ -354,4 +354,4 @@ Name[wo]=Panlanteeru biir bu bees
 Name[xh]=Ifestile yangasese entsha
 Name[zh_CN]=新建隐私浏览窗口
 Name[zh_TW]=新增隱私視窗
-Exec=$SCRIPT_PATH --name $INSTANCE $NAME --incognito %U
+Exec=$SCRIPT_PATH --name $INSTANCE $SPEC_TAG --incognito %U

@@ -6,15 +6,15 @@ if [ ! -d "$CONTENT_DIR" ]; then
     exit 1
 fi
 
-NAME=$1
-if [ -z "$NAME" ]; then
+INSTANCE=$1
+if [ -z "$INSTANCE" ]; then
     echo "Usage: $0 <container-name>"
     exit 1
 fi
 
-TARGET="$CONTENT_DIR/$NAME"
+TARGET="$CONTENT_DIR/$INSTANCE"
 if [ ! -d "$TARGET" ]; then
-    echo "Container $NAME not found at $TARGET."
+    echo "Container $INSTANCE not found at $TARGET."
     ls "$CONTENT_DIR"
     exit 1
 fi
