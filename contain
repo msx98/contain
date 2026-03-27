@@ -117,10 +117,9 @@ if [ -f "$SPEC/desktop" ]; then
 fi
 
 mkdir -p "$CONTAIN_HOME"
-#mkdir -p "$CONTAIN_ROOTFS/runtime/dconf"
-#chmod 777 "$CONTAIN_HOME"
 
 # Load spec files
+export HOME SPEC CONTAIN_HOME_GUEST
 mapfile -t DBUS_NAMES   < "$SPEC/run.dbus"
 mapfile -t PODMAN_EXTRA < <([ -f "$SPEC/run.podman" ] && grep -v '^#' "$SPEC/run.podman" || true)
 
@@ -172,7 +171,14 @@ COMMON_FLAGS+=("--security-opt" "no-new-privileges")
 COMMON_FLAGS+=("--security-opt" "label=type:container_runtime_t")
 #COMMON_FLAGS+=("--cap-add" "ALL")
 COMMON_FLAGS+=("--userns" "keep-id") #:uid=$UID_GUEST,gid=$UID_GUEST")
-COMMON_FLAGS+=("--net" "pasta")
+NET_PASTA_ARGS="pasta"
+if [ -f "$SPEC/run.net.map-guest-addr" ]; then
+    while IFS= read -r addr || [ -n "$addr" ]; do
+        [[ -z "$addr" || "$addr" == \#* ]] && continue
+        NET_PASTA_ARGS+=":--map-guest-addr,$addr"
+    done < "$SPEC/run.net.map-guest-addr"
+fi
+COMMON_FLAGS+=("--net" "$NET_PASTA_ARGS")
 XDG_RUNTIME_GUEST_HOST="$TMP_DIR/xdg-runtime"
 mkdir -p "$XDG_RUNTIME_GUEST_HOST"
 COMMON_FLAGS+=("-v" "$XDG_RUNTIME_GUEST_HOST:$XDG_RUNTIME_DIR_GUEST")
@@ -181,26 +187,6 @@ COMMON_FLAGS+=("-v" "$PIPEWIRE_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/pipewire-0:rw")
 COMMON_FLAGS+=("-v" "$DBUS_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/bus:rw")
 COMMON_FLAGS+=("-v" "$PULSE_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/pulse/native")
 COMMON_FLAGS+=("-v" "$CONTAIN_HOME:$CONTAIN_HOME_GUEST:Z")
-
-ADDITIONAL_PATHS=()
-if [ -d "$SPEC/extra" ]; then
-    COMMON_FLAGS+=("-v" "$SPEC/extra:/extra:ro")
-    if [ -d "$SPEC/extra/bin" ]; then
-        ADDITIONAL_PATHS+=("/extra/bin")
-        for extra_dir in "$SPEC/extra/bin"/*/; do
-            if [ -d "$extra_dir" ]; then
-                extra_dir_name=$(basename "$extra_dir")
-                ADDITIONAL_PATHS+=("/extra/bin/$extra_dir_name")
-            fi
-        done
-    fi
-fi
-PATH_EXTRA=$(IFS=:; echo "${ADDITIONAL_PATHS[*]}")
-if [ -n "$PATH_EXTRA" ]; then
-    PROMPT_COMMAND="export PATH=\$PATH:$PATH_EXTRA"
-    COMMON_FLAGS+=("-e" "PROMPT_COMMAND=$PROMPT_COMMAND")
-fi
-
 COMMON_FLAGS+=("-e" "HOME=$CONTAIN_HOME_GUEST")
 COMMON_FLAGS+=("-e" "INSTANCE=$INSTANCE")
 COMMON_FLAGS+=("-e" "UID_GUEST=$UID_GUEST")
