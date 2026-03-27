@@ -30,10 +30,26 @@ spec_dir() {
 }
 
 SPEC_DIR=$(spec_dir "$SPEC_TAG")
-CONTAINERFILE="$SPEC_DIR/Containerfile"
 
-if [ ! -f "$CONTAINERFILE" ]; then
-    echo "Error: no Containerfile at $CONTAINERFILE"
+find_spec_file() {
+    local tag filename t
+    tag="$1" filename="$2"
+    t="$tag"
+    while true; do
+        local dir
+        dir=$(spec_dir "$t")
+        if [ -f "$dir/$filename" ]; then
+            echo "$dir/$filename"
+            return 0
+        fi
+        [[ "$t" == */* ]] || break
+        t="${t%/*}"
+    done
+    return 1
+}
+
+if ! CONTAINERFILE=$(find_spec_file "$SPEC_TAG" Containerfile); then
+    echo "Error: no Containerfile found for $SPEC_TAG or any of its parents"
     exit 1
 fi
 
@@ -55,12 +71,13 @@ BUILD_ARG_FLAGS=()
 [ -n "$BASE" ] && BUILD_ARG_FLAGS+=(--build-arg "BASE=$BASE")
 
 # Read build.args for any additional custom args (TAG and BASE are derived from path)
-if [ -f "$SPEC_DIR/build.args" ]; then
+BUILDARGS_FILE=$(find_spec_file "$SPEC_TAG" build.args || true)
+if [ -n "$BUILDARGS_FILE" ]; then
     while IFS='=' read -r key value; do
         [[ -z "$key" || "$key" == \#* ]] && continue
         [[ "$key" == TAG || "$key" == BASE ]] && continue
         BUILD_ARG_FLAGS+=(--build-arg "$key=$value")
-    done < "$SPEC_DIR/build.args"
+    done < "$BUILDARGS_FILE"
 fi
 
 echo "------------------------------------------"
