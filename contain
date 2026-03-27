@@ -5,6 +5,7 @@ set -e
 SCRIPT_PATH="$(realpath "$0")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 SPECS_DIR="${SCRIPT_DIR}/specs"
+cd "${SCRIPT_DIR}"
 
 REBUILD=0
 SHELL_MODE=0
@@ -180,6 +181,26 @@ COMMON_FLAGS+=("-v" "$PIPEWIRE_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/pipewire-0:rw")
 COMMON_FLAGS+=("-v" "$DBUS_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/bus:rw")
 COMMON_FLAGS+=("-v" "$PULSE_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/pulse/native")
 COMMON_FLAGS+=("-v" "$CONTAIN_HOME:$CONTAIN_HOME_GUEST:Z")
+
+ADDITIONAL_PATHS=()
+if [ -d "$SPEC/extra" ]; then
+    COMMON_FLAGS+=("-v" "$SPEC/extra:/extra:ro")
+    if [ -d "$SPEC/extra/bin" ]; then
+        ADDITIONAL_PATHS+=("/extra/bin")
+        for extra_dir in "$SPEC/extra/bin"/*/; do
+            if [ -d "$extra_dir" ]; then
+                extra_dir_name=$(basename "$extra_dir")
+                ADDITIONAL_PATHS+=("/extra/bin/$extra_dir_name")
+            fi
+        done
+    fi
+fi
+PATH_EXTRA=$(IFS=:; echo "${ADDITIONAL_PATHS[*]}")
+if [ -n "$PATH_EXTRA" ]; then
+    PROMPT_COMMAND="export PATH=\$PATH:$PATH_EXTRA"
+    COMMON_FLAGS+=("-e" "PROMPT_COMMAND=$PROMPT_COMMAND")
+fi
+
 COMMON_FLAGS+=("-e" "HOME=$CONTAIN_HOME_GUEST")
 COMMON_FLAGS+=("-e" "INSTANCE=$INSTANCE")
 COMMON_FLAGS+=("-e" "UID_GUEST=$UID_GUEST")
