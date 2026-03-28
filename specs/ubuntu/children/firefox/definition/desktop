@@ -42,7 +42,7 @@ Comment[pt]=Navegue na Internet
 Comment[pt_BR]=Navegue na Internet
 Comment[sk]=Prehliadanie internetu
 Comment[sv]=Surfa på webben
-Exec=$SCRIPT_PATH --name $INSTANCE $SPEC_TAG %u
+Exec=$SCRIPT_PATH run --name $INSTANCE $SPEC_TAG %u
 Icon=org.mozilla.firefox
 Terminal=false
 Type=Application
@@ -160,7 +160,7 @@ Name[wo]=Palanteer bu bees
 Name[xh]=Ifestile entsha
 Name[zh_CN]=新建窗口
 Name[zh_TW]=開新視窗
-Exec=$SCRIPT_PATH --name $INSTANCE $SPEC_TAG --new-window %u
+Exec=$SCRIPT_PATH run --name $INSTANCE $SPEC_TAG --new-window %u
 
 [Desktop Action new-private-window]
 Name=Open a New Private Window
@@ -268,11 +268,11 @@ Name[wo]=Panlanteeru biir bu bees
 Name[xh]=Ifestile yangasese entsha
 Name[zh_CN]=新建隐私浏览窗口
 Name[zh_TW]=新增隱私視窗
-Exec=$SCRIPT_PATH --name $INSTANCE $SPEC_TAG --private-window %u
+Exec=$SCRIPT_PATH run --name $INSTANCE $SPEC_TAG --private-window %u
 
 [Desktop Action profile-manager-window]
 Name=Open the Profile Manager
 Name[cs]=Správa profilů
 Name[de]=Profilverwaltung öffnen
 Name[fr]=Ouvrir le gestionnaire de profils
-Exec=$SCRIPT_PATH --name $INSTANCE $SPEC_TAG --ProfileManager
+Exec=$SCRIPT_PATH run --name $INSTANCE $SPEC_TAG --ProfileManager

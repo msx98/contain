@@ -8,6 +8,125 @@ SPECS_DIR="${SCRIPT_DIR}/specs"
 INSTANCES_DIR="${SCRIPT_DIR}/instances"
 cd "${SCRIPT_DIR}"
 
+usage() {
+    echo "Usage: $0 (run|build) [--flags...] <spec-tag> [args...]"
+    echo "  $0 build [--base] <spec-tag>"
+    echo "  $0 run [--rebuild|--build] [--shell] [--update|--setup] [--dbus] [--name <instance>] <spec-tag> [args...]"
+}
+
+# Resolve spec directory from tag.
+# "a/b/c" -> $SPECS_DIR/a/children/b/children/c/definition
+spec_dir() {
+    local tag="$1" dir="$SPECS_DIR"
+    IFS='/' read -ra parts <<< "$tag"
+    for ((i=0; i<${#parts[@]}; i++)); do
+        ((i > 0)) && dir="$dir/children"
+        dir="$dir/${parts[$i]}"
+    done
+    echo "$dir/definition"
+}
+
+find_spec_file() {
+    local tag filename t
+    tag="$1" filename="$2"
+    t="$tag"
+    while true; do
+        local dir
+        dir=$(spec_dir "$t")
+        if [ -f "$dir/$filename" ]; then
+            echo "$dir/$filename"
+            return 0
+        fi
+        [[ "$t" == */* ]] || break
+        t="${t%/*}"
+    done
+    return 1
+}
+
+build_spec() {
+    local rebuild_base="$1"
+    local spec_tag="$2"
+
+    if ! containerfile=$(find_spec_file "$spec_tag" Containerfile); then
+        echo "Error: no Containerfile found for $spec_tag or any of its parents"
+        exit 1
+    fi
+
+    # Derive image tag: replace "/" with "--"
+    local tag="localhost/contain:${spec_tag//\//--}"
+
+    # Derive BASE from parent path and auto-build it if missing
+    local base=""
+    if [[ "$spec_tag" == */* ]]; then
+        local parent_tag="${spec_tag%/*}"
+        base="localhost/contain:${parent_tag//\//--}"
+        if [ "$rebuild_base" -eq 1 ] || ! podman image exists "$base"; then
+            echo "Building parent $base..."
+            "$0" build "$parent_tag"
+        fi
+    fi
+
+    local spec_dir_path
+    spec_dir_path=$(spec_dir "$spec_tag")
+
+    BUILD_ARG_FLAGS=()
+    [ -n "$base" ] && BUILD_ARG_FLAGS+=(--build-arg "BASE=$base")
+
+    # Read build.args for any additional custom args (TAG and BASE are derived from path)
+    local buildargs_file
+    buildargs_file=$(find_spec_file "$spec_tag" build.args || true)
+    if [ -n "$buildargs_file" ]; then
+        while IFS='=' read -r key value; do
+            [[ -z "$key" || "$key" == \#* ]] && continue
+            [[ "$key" == TAG || "$key" == BASE ]] && continue
+            BUILD_ARG_FLAGS+=(--build-arg "$key=$value")
+        done < "$buildargs_file"
+    fi
+
+    echo "------------------------------------------"
+    echo "Building $tag from $containerfile"
+    echo "------------------------------------------"
+    podman build -t "$tag" -f "$containerfile" "$spec_dir_path" "${BUILD_ARG_FLAGS[@]}"
+    echo "Build complete: $tag"
+}
+
+if [ $# -lt 1 ]; then
+    usage
+    exit 1
+fi
+
+COMMAND="$1"
+shift
+
+case "$COMMAND" in
+    build)
+        REBUILD_BASE=0
+        while [[ "$1" == --* ]]; do
+            case "$1" in
+                --base) REBUILD_BASE=1 ;;
+                *) echo "Unknown build option: $1"; usage; exit 1 ;;
+            esac
+            shift
+        done
+
+        if [ -z "$1" ]; then
+            usage
+            exit 1
+        fi
+
+        SPEC_TAG="$1"
+        build_spec "$REBUILD_BASE" "$SPEC_TAG"
+        exit 0
+        ;;
+    run)
+        ;;
+    *)
+        echo "Unknown command: $COMMAND"
+        usage
+        exit 1
+        ;;
+esac
+
 REBUILD=0
 SHELL_MODE=0
 UPDATE=0
@@ -31,17 +150,10 @@ SPEC_TAG="$1"
 shift
 APP_ARGS=("$@")
 
-# Resolve spec directory from tag.
-# "a/b/c" -> $SPECS_DIR/a/children/b/children/c/definition
-spec_dir() {
-    local tag="$1" dir="$SPECS_DIR"
-    IFS='/' read -ra parts <<< "$tag"
-    for ((i=0; i<${#parts[@]}; i++)); do
-        ((i > 0)) && dir="$dir/children"
-        dir="$dir/${parts[$i]}"
-    done
-    echo "$dir/definition"
-}
+if [ -z "$SPEC_TAG" ]; then
+    usage
+    exit 1
+fi
 
 if [ "$INSTANCE" == "" ]; then
     INSTANCE="${SPEC_TAG//\//--}"
@@ -84,23 +196,6 @@ cleanup() {
 
 SPEC=$(spec_dir "$SPEC_TAG")
 
-find_spec_file() {
-    local tag filename t
-    tag="$1" filename="$2"
-    t="$tag"
-    while true; do
-        local dir
-        dir=$(spec_dir "$t")
-        if [ -f "$dir/$filename" ]; then
-            echo "$dir/$filename"
-            return 0
-        fi
-        [[ "$t" == */* ]] || break
-        t="${t%/*}"
-    done
-    return 1
-}
-
 # Resolve image tag: nearest ancestor (inclusive) that owns a Containerfile or build.args
 resolve_image_tag() {
     local t dir
@@ -117,7 +212,6 @@ resolve_image_tag() {
     return 1
 }
 
-echo "Resolving" > tmp.log
 IMAGE_TAG=$(resolve_image_tag "$SPEC_TAG") || { echo "Error: no Containerfile or build.args found for $SPEC_TAG or any parent"; exit 1; }
 echo "Resolved image tag: $IMAGE_TAG"
 IMAGE="localhost/contain:${IMAGE_TAG//\//--}"
@@ -160,7 +254,7 @@ fi
 
 if [ "$REBUILD" -eq 1 ]; then
     echo "Building image $IMAGE..."
-    ./build "$IMAGE_TAG"
+    "$0" build "$IMAGE_TAG"
     UPDATE=1
 fi
 

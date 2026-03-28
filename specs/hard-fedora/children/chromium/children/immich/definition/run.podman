@@ -1,0 +1,7 @@
+--device=/dev/dri/renderD128:/dev/dri/renderD128:rw
+--shm-size=1g
+--cap-add=SYS_CHROOT
+--volume=${HOME}/Downloads:${CONTAIN_HOME_GUEST}/Downloads
+--volume=${HOME}/Downloads:${HOME}/Downloads
+--network=pasta:--no-map-gw,--address,10.7.0.2,--netmask,255.255.255.0,--outbound,10.7.0.1
+--add-host=immich.internal:10.7.0.1

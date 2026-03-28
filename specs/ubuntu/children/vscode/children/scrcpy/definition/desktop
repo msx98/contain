@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=scrcpy$SUFFIX
+Description=Display and control your Android device
+GenericName=Android Device Control
+Icon=$SPEC/icon.svg
+Terminal=false
+Categories=Development;
+StartupWMClass=scrcpy
+Exec=$SCRIPT_PATH run --name $INSTANCE $SPEC_TAG

@@ -1,0 +1,8 @@
+org.freedesktop.portal.Desktop
+org.freedesktop.portal.FileChooser
+org.freedesktop.portal.Settings
+org.freedesktop.portal.Notifications
+org.freedesktop.Notifications
+org.freedesktop.secrets
+org.gnome.keyring.SystemProxyHandler
+org.gnome.keyring

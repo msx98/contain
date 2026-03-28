@@ -1,0 +1,4 @@
+ARG BASE
+FROM $BASE
+
+RUN dnf install -y chromium && dnf clean all

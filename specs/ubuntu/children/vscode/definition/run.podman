@@ -6,4 +6,3 @@
 --volume=${HOME}/Downloads:/home/user/Downloads
 --volume=${HOME}/Downloads:${HOME}/Downloads
 --volume=${HOME}/Documents/Android/Sdk:/home/user/Android/Sdk
---volume=${SPEC}/extra:/extra:ro

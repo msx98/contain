@@ -5,4 +5,4 @@ Icon=com.visualstudio.code
 Terminal=false
 Categories=Development;IDE;TextEditor;
 StartupWMClass=code
-Exec=$SCRIPT_PATH --name $INSTANCE $SPEC_TAG %F
+Exec=$SCRIPT_PATH run --name $INSTANCE $SPEC_TAG %F
