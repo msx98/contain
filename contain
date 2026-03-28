@@ -227,12 +227,38 @@ PODMAN_RUN=("podman" "run")
 
 # Flags shared between postbuild and normal run
 COMMON_FLAGS=()
+for extra in "${PODMAN_EXTRA[@]}"; do
+    COMMON_FLAGS+=("$extra")
+done
+has_flag() {
+    local flag="$1"
+    for f in "${COMMON_FLAGS[@]}"; do
+        if [[ "$f" == "$flag" || "$f" == "$flag="* ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+add_flag() {
+    local flag="$1" value="$2"
+    if [ -n "$value" ]; then
+        COMMON_FLAGS+=("$flag" "$value")
+    else
+        COMMON_FLAGS+=("$flag")
+    fi
+}
+add_flag_if_not_exists() {
+    local flag="$1" value="$2"
+    if ! has_flag "$flag"; then
+        add_flag "$flag" "$value"
+    fi
+}
 #COMMON_FLAGS+=("--name" "contain-$SPEC_TAG")
 #COMMON_FLAGS+=("--cap-drop" "ALL")
-COMMON_FLAGS+=("--security-opt" "no-new-privileges")
-COMMON_FLAGS+=("--security-opt" "label=type:container_runtime_t")
+add_flag "--security-opt" "no-new-privileges"
+add_flag "--security-opt" "label=type:container_runtime_t"
 #COMMON_FLAGS+=("--cap-add" "ALL")
-COMMON_FLAGS+=("--userns" "keep-id") #:uid=$UID_GUEST,gid=$UID_GUEST")
+add_flag_if_not_exists "--userns" "keep-id" #:uid=$UID_GUEST,gid=$UID_GUEST")
 NET_PASTA_ARGS="pasta"
 if [ -n "$SPEC_NET_MAP" ]; then
     while IFS= read -r addr || [ -n "$addr" ]; do
@@ -240,29 +266,25 @@ if [ -n "$SPEC_NET_MAP" ]; then
         NET_PASTA_ARGS+=":--map-guest-addr,$addr"
     done < "$SPEC_NET_MAP"
 fi
-COMMON_FLAGS+=("--net" "$NET_PASTA_ARGS")
+add_flag_if_not_exists "--network" "$NET_PASTA_ARGS"
 XDG_RUNTIME_GUEST_HOST="$TMP_DIR/xdg-runtime"
 mkdir -p "$XDG_RUNTIME_GUEST_HOST"
-COMMON_FLAGS+=("-v" "$XDG_RUNTIME_GUEST_HOST:$XDG_RUNTIME_DIR_GUEST")
-COMMON_FLAGS+=("-v" "$WAYLAND_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/$WAYLAND_DISPLAY:ro")
-COMMON_FLAGS+=("-v" "$PIPEWIRE_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/pipewire-0:rw")
-COMMON_FLAGS+=("-v" "$DBUS_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/bus:rw")
-COMMON_FLAGS+=("-v" "$PULSE_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/pulse/native")
-COMMON_FLAGS+=("-v" "$CONTAIN_HOME:$CONTAIN_HOME_GUEST:Z")
-COMMON_FLAGS+=("-e" "HOME=$CONTAIN_HOME_GUEST")
-COMMON_FLAGS+=("-e" "INSTANCE=$INSTANCE")
-COMMON_FLAGS+=("-e" "UID_GUEST=$UID_GUEST")
-COMMON_FLAGS+=("-e" "GTK_THEME=Adwaita:dark")
-COMMON_FLAGS+=("-e" "DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR_GUEST/bus")
-COMMON_FLAGS+=("-e" "PULSE_SERVER=unix:$XDG_RUNTIME_DIR_GUEST/pulse/native")
-COMMON_FLAGS+=("-e" "PIPEWIRE_REMOTE=$XDG_RUNTIME_DIR_GUEST/pipewire-0")
-COMMON_FLAGS+=("-e" "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR_GUEST")
-COMMON_FLAGS+=("-e" "WAYLAND_DISPLAY=$WAYLAND_DISPLAY")
-COMMON_FLAGS+=("-e" "XDG_SESSION_TYPE=wayland")
-for extra in "${PODMAN_EXTRA[@]}"; do
-echo "Adding extra podman flag: $extra"
-    COMMON_FLAGS+=("$extra")
-done
+add_flag "-v" "$XDG_RUNTIME_GUEST_HOST:$XDG_RUNTIME_DIR_GUEST"
+add_flag "-v" "$WAYLAND_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/$WAYLAND_DISPLAY:ro"
+add_flag "-v" "$PIPEWIRE_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/pipewire-0:rw"
+add_flag "-v" "$DBUS_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/bus:rw"
+add_flag "-v" "$PULSE_PROXY_SOCK:$XDG_RUNTIME_DIR_GUEST/pulse/native"
+add_flag "-v" "$CONTAIN_HOME:$CONTAIN_HOME_GUEST:Z"
+add_flag "-e" "HOME=$CONTAIN_HOME_GUEST"
+add_flag "-e" "INSTANCE=$INSTANCE"
+add_flag "-e" "UID_GUEST=$UID_GUEST"
+add_flag "-e" "GTK_THEME=Adwaita:dark"
+add_flag "-e" "DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR_GUEST/bus"
+add_flag "-e" "PULSE_SERVER=unix:$XDG_RUNTIME_DIR_GUEST/pulse/native"
+add_flag "-e" "PIPEWIRE_REMOTE=$XDG_RUNTIME_DIR_GUEST/pipewire-0"
+add_flag "-e" "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR_GUEST"
+add_flag "-e" "WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+add_flag "-e" "XDG_SESSION_TYPE=wayland"
 COMMON_FLAGS+=("$IMAGE")
 
 echo "${PODMAN_RUN[@]}" -i --rm -v "$(realpath "$SPEC_INIT"):/init.sh:ro" --cap-drop ALL "${COMMON_FLAGS[@]}" dbus-run-session -- bash /init.sh "${APP_ARGS[@]}"
@@ -302,9 +324,15 @@ if [ "$SHELL_MODE" -eq 1 ]; then
         dbus-run-session -- bash
 else
     echo "Starting container for $SPEC_TAG..."
+    echo "${PODMAN_RUN[@]}" -i --rm \
+        -v "$(realpath "$SPEC_INIT"):/init.sh:ro" \
+        --cap-drop ALL \
+        "${COMMON_FLAGS[@]}" \
+        "${APP_ARGS[@]}" 
     "${PODMAN_RUN[@]}" -i --rm \
         -v "$(realpath "$SPEC_INIT"):/init.sh:ro" \
         --cap-drop ALL \
         "${COMMON_FLAGS[@]}" \
-        "${APP_ARGS[@]}"
+        "${APP_ARGS[@]}" 
+    #sh
 fi
