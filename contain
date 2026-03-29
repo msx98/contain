@@ -14,8 +14,6 @@ usage() {
     echo "Usage: $0 (run|build|install) [--flags...] <spec-tag> [args...]"
     echo "  $0 build [--base] [--sync] <spec-tag>"
     echo "  $0 run [--rebuild|--build] [--shell] [--update|--setup] [--dbus] [--sync] [--name <instance>] <spec-tag> [args...]"
-    echo "  $0 install"
-    echo "  $0 uninstall"
 }
 
 find_spec_dir() {
@@ -120,59 +118,6 @@ sync_spec() {
     rsync -a --delete "$src_dir/" "$dest_dir/"
 }
 
-do_install() {
-    local repo_dir="$SCRIPT_DIR"
-    local install_dir="$HOME/.local/bin/contain"
-
-    mkdir -p "$install_dir"
-
-    # Add ~/.local/bin/contain to PATH and set CONTAIN_REPO_LOCATION in shell configs
-    local block
-    block="$(printf '\n# >>> contain initialize\nexport PATH="$HOME/.local/bin/contain:$PATH"\nexport CONTAIN_REPO_LOCATION="%s"\n# <<< contain initialize' "$repo_dir")"
-    for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
-        [ -f "$rc" ] || continue
-        local tmp
-        tmp=$(mktemp)
-        awk '/# >>> contain initialize/{found=1} !found{print} /# <<< contain initialize/{found=0}' "$rc" > "$tmp"
-        printf '%s\n' "$block" >> "$tmp"
-        mv "$tmp" "$rc"
-        echo "Updated $rc"
-    done
-
-    if [[ ":$PATH:" != *":$install_dir:"* ]]; then
-        echo "Note: $install_dir not in current PATH — restart shell or run: export PATH=\"$install_dir:\$PATH\""
-    fi
-
-    # Install contain script
-    cp "$SCRIPT_PATH" "$install_dir/contain"
-    chmod +x "$install_dir/contain"
-    echo "Installed contain -> $install_dir/contain"
-
-    # Install specs
-    rm -rf "$install_dir/specs"
-    cp -r "$repo_dir/specs" "$install_dir/specs"
-    echo "Installed specs -> $install_dir/specs"
-}
-
-do_uninstall() {
-    local install_dir="$HOME/.local/bin/contain"
-
-    # Remove the initialize block from shell configs
-    for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
-        [ -f "$rc" ] || continue
-        if grep -q '# >>> contain initialize' "$rc" 2>/dev/null; then
-            local tmp
-            tmp=$(mktemp)
-            awk '/# >>> contain initialize/{found=1} !found{print} /# <<< contain initialize/{found=0}' "$rc" > "$tmp"
-            mv "$tmp" "$rc"
-            echo "Cleaned $rc"
-        fi
-    done
-
-    rm -rf "$install_dir"
-    echo "Removed $install_dir"
-}
-
 if [ $# -lt 1 ]; then
     usage
     exit 1
@@ -182,14 +127,6 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    install)
-        do_install
-        exit 0
-        ;;
-    uninstall)
-        do_uninstall
-        exit 0
-        ;;
     build)
         REBUILD_BASE=0
         SYNC=0
