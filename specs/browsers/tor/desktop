@@ -1,0 +1,23 @@
+[Desktop Entry]
+Version=1.0
+Name=Tor Browser$SUFFIX
+GenericName=Web Browser
+Comment=Privacy-focused web browser over Tor
+Exec=$SCRIPT_PATH run --name $INSTANCE_SUFFIX $SPEC_TAG %u
+Icon=web-browser
+Terminal=false
+Type=Application
+MimeType=text/html;text/xml;application/xhtml+xml;text/mml;x-scheme-handler/http;x-scheme-handler/https;
+StartupNotify=true
+StartupWMClass=tor-browser.$INSTANCE
+Categories=Network;WebBrowser;
+Keywords=web;browser;internet;privacy;tor;anonymous;
+Actions=new-window;new-private-window;
+
+[Desktop Action new-window]
+Name=Open a New Window
+Exec=$SCRIPT_PATH run --name $INSTANCE_SUFFIX $SPEC_TAG --new-window %u
+
+[Desktop Action new-private-window]
+Name=Open a New Private Window
+Exec=$SCRIPT_PATH run --name $INSTANCE_SUFFIX $SPEC_TAG --private-window %u

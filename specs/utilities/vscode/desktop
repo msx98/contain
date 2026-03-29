@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=VSCode$SUFFIX
+Icon=com.visualstudio.code
+Terminal=false
+Categories=Development;IDE;TextEditor;
+StartupWMClass=code
+Exec=$SCRIPT_PATH run --name $INSTANCE_SUFFIX $SPEC_TAG %F

@@ -2,42 +2,46 @@
 
 ## Spec system
 
-Specs live under `specs/` in a nested parent/child hierarchy. Each spec node has:
+Specs live under `specs/` in a freely-organized flat directory structure. Each spec is a directory containing its files directly (no `definition/` or `children/` subdirs).
 
-- `definition/` — the spec's own files (Containerfile, init.sh, run.dbus, etc.)
-- `children/` — child specs that build FROM this spec's image
+A spec tag is the path from `specs/` with `/` replaced by `--`:
 
-A spec tag like `ubuntu/firefox` maps to:
-- Directory: `specs/ubuntu/children/firefox/definition/`
-- Image: `localhost/contain:ubuntu--firefox`
-- BASE build-arg: `localhost/contain:ubuntu` (auto-built if missing)
+- `specs/base/ubuntu/` → tag `base--ubuntu` → image `localhost/contain:base--ubuntu`
+- `specs/browsers/firefox/` → tag `browsers--firefox` → image `localhost/contain:browsers--firefox`
+- `specs/utilities/scrcpy/` → tag `utilities--scrcpy` → image `localhost/contain:utilities--scrcpy`
 
-Arbitrary depth is supported: `a/b/c` → `specs/a/children/b/children/c/definition/`, tag `localhost/contain:a--b--c`.
+The directory layout is for human organization only. Build hierarchy is declared via `build.parent`.
+
+## build.parent
+
+`build.parent` contains the parent spec tag (e.g. `base--ubuntu`). At build time the script passes `--build-arg BASE=localhost/contain:<parent>` so Containerfiles use `ARG BASE` / `FROM $BASE` as usual.
+
+Specs without a Containerfile (runtime-config-only) also use `build.parent` — building them is a no-op that just ensures the parent image exists.
 
 ## Scripts
 
-**`build <spec-tag>`** — resolves the spec dir, derives TAG and BASE from the path, auto-builds the parent if missing, then runs `podman build`.
+**`contain build <spec-tag>`** — finds `specs/<tag with -- replaced by />`, reads `build.parent` to auto-build the parent if missing, then runs `podman build`.
 
-**`contain <spec-tag>`** — resolves the spec dir and image tag the same way, starts socket proxies (Wayland, PipeWire, PulseAudio, D-Bus), mounts the persistent home at `~/.local/share/contain/<instance>/`, and runs the container.
-
-Both scripts share the same `spec_dir()` function logic (path segments interleaved with `children/`, `definition/` suffix).
+**`contain run <spec-tag>`** — resolves the image (walking up `build.parent` chain to find the nearest Containerfile), starts socket proxies (Wayland, PipeWire, PulseAudio, D-Bus), mounts the persistent home at `~/.local/share/contain/<instance>/`, and runs the container.
 
 ## Adding a new spec
 
-1. Create `specs/<parent>/children/<name>/definition/Containerfile` — use `ARG BASE` / `FROM $BASE`
-2. Add `run.dbus` (D-Bus names to allow, one per line)
-3. Add `run.podman` (extra podman flags, envsubst is applied)
-4. Add `init.sh` (container entrypoint)
-5. Create `specs/<parent>/children/<name>/children/.keep`
+1. Create `specs/<category>/<name>/Containerfile` — use `ARG BASE` / `FROM $BASE`
+2. Add `build.parent` containing the parent spec tag
+3. Add `run.dbus` (D-Bus names to allow, one per line)
+4. Add `run.podman` (extra podman flags, envsubst is applied)
+5. Add `init.sh` (container entrypoint)
 
-Run with `./build <parent>/<name>` and `./contain <parent>/<name>`.
+For a runtime-config-only spec (no build step): omit `Containerfile`, add only `build.parent` and runtime files.
+
+Run with `./contain build <category>--<name>` and `./contain run <category>--<name>`.
 
 ## build.args
 
-`build.args` in a `definition/` dir can contain extra `KEY=VALUE` pairs passed as `--build-arg`. Do not add `TAG=` or `BASE=` — both are derived from the spec path.
+`build.args` in a spec dir can contain extra `KEY=VALUE` pairs passed as `--build-arg`. `BASE` is handled automatically via `build.parent` — do not add it here.
 
 ## Instance data
 
 Per-instance persistent home: `~/.local/share/contain/<instance>/home/user/`
 
-Default instance name is the spec tag with `/` replaced by `--` (e.g. `ubuntu--firefox`). Override with `--name`.
+Default instance name is the spec tag (e.g. `browsers--firefox`). Override with `--name`.
